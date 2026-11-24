@@ -15,7 +15,7 @@ O Flask roda no Render e grava indicadores do Banco Central e registros de acess
 - O primeiro Terraform falhou na autenticação. Atualizei o secret com um token válido e executei o workflow novamente. O segundo apply concluiu com três recursos criados.
 - Validei a aplicação primeiro com o PostgreSQL Developer já existente e depois a conectei ao `dashboard-pg` Free. O banco Free começou com as tabelas criadas pelo app e dados do Banco Central. Não houve operação de cópia de uma base histórica.
 
-## Como comprovar
+## Comprovação
 
 - [Dashboard publicado](https://migra-o-de-aplica-o-aiven.onrender.com/). Recarregar a página registra uma visita e atualiza o contador. No teste, ele passou de 5 para 6 e a tabela mostrou seis registros.
 - [Health check](https://migra-o-de-aplica-o-aiven.onrender.com/healthz). O JSON esperado é `{"status":"ok"}`, resultado de uma consulta ao PostgreSQL.
