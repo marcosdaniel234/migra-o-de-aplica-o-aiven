@@ -35,7 +35,7 @@
     {% endfor %}
     <div class="card muted">
       <span class="label">Acessos ao dashboard</span>
-      <span class="value">{{ data.total_visits }}</span>
+      <span class="value" id="totalVisits">{{ activity.total }}</span>
       <span class="meta">uptime: {{ data.uptime_seconds }}s</span>
     </div>
   </section>
@@ -45,9 +45,23 @@
     <canvas id="indicatorsChart" height="90"></canvas>
   </section>
 
+  <section class="chart-container" aria-labelledby="visits-heading">
+    <h2 id="visits-heading">Acessos por minuto</h2>
+    <canvas id="visitsChart" role="img" aria-label="Acessos por minuto na última hora" height="70"></canvas>
+    <h2>Últimos acessos (UTC)</h2>
+    <table>
+      <thead><tr><th scope="col">Horário</th><th scope="col">Caminho</th></tr></thead>
+      <tbody id="recentVisits">
+        {% for visit in activity.recent %}
+        <tr><td>{{ visit.timestamp }}</td><td>{{ visit.path }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
   <footer>
     <small>
-      Atualiza automaticamente a cada 60s · Fonte:
+      Indicadores atualizados a cada 60s · Acessos atualizados a cada 10s · Fonte:
       <a href="https://dadosabertos.bcb.gov.br/" target="_blank" rel="noopener">dadosabertos.bcb.gov.br</a>
       · <a href="/api/indicators">/api/indicators</a> · <a href="/healthz">/healthz</a>
     </small>
@@ -82,6 +96,42 @@
       }
     });
 
+    const activity = {{ activity | tojson }};
+    const visitsChart = new Chart(document.getElementById('visitsChart'), {
+      type: 'line',
+      data: {
+        labels: activity.per_minute.map(point => point.minute),
+        datasets: [{
+          label: 'Acessos',
+          data: activity.per_minute.map(point => point.total),
+          borderColor: '#4f46e5'
+        }]
+      },
+      options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+
+    async function updateVisits() {
+      try {
+        const response = await fetch({{ url_for('api_visits') | tojson }}, { cache: 'no-store' });
+        if (!response.ok) return;
+        const latest = await response.json();
+        document.getElementById('totalVisits').textContent = latest.total;
+        const rows = latest.recent.map(visit => {
+          const row = document.createElement('tr');
+          row.insertCell().textContent = visit.timestamp;
+          row.insertCell().textContent = visit.path;
+          return row;
+        });
+        document.getElementById('recentVisits').replaceChildren(...rows);
+        visitsChart.data.labels = latest.per_minute.map(point => point.minute);
+        visitsChart.data.datasets[0].data = latest.per_minute.map(point => point.total);
+        visitsChart.update();
+      } catch (error) {
+        console.warn('Não foi possível atualizar os acessos.', error);
+      }
+    }
+
+    setInterval(updateVisits, 10000);
     setTimeout(() => location.reload(), 60000);
   </script>
 </body>
