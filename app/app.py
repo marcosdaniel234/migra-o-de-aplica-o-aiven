@@ -117,11 +117,42 @@ def get_dashboard_data():
     }
 
 
+def get_visit_activity():
+    with bcb.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) AS total FROM visits;")
+            total = cur.fetchone()["total"]
+            cur.execute(
+                """
+                SELECT date_trunc('minute', created_at) AS minute, COUNT(*) AS total
+                FROM visits
+                WHERE created_at >= date_trunc('minute', now()) - INTERVAL '59 minutes'
+                GROUP BY 1
+                ORDER BY 1;
+                """
+            )
+            per_minute = [
+                {"minute": row["minute"].strftime("%H:%M"), "total": row["total"]}
+                for row in cur.fetchall()
+            ]
+            cur.execute("SELECT path, created_at FROM visits ORDER BY id DESC LIMIT 10;")
+            recent = [
+                {"path": row["path"], "timestamp": row["created_at"].strftime("%d/%m/%Y %H:%M:%S")}
+                for row in cur.fetchall()
+            ]
+    return {"total": total, "per_minute": per_minute, "recent": recent}
+
+
 @app.route("/")
 def dashboard():
     log_visit("/")
     data = get_dashboard_data()
-    return render_template("dashboard.html", data=data)
+    return render_template("dashboard.html", data=data, activity=get_visit_activity())
+
+
+@app.route("/api/visits")
+def api_visits():
+    return jsonify(get_visit_activity())
 
 
 @app.route("/api/indicators")
